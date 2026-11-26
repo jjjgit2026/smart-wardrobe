@@ -1,22 +1,24 @@
 <script setup lang="ts">
 const links = [
-  { to: '/', label: '今日', icon: 'M4 11l8-7 8 7v9H4z' },
-  { to: '/wardrobe', label: '衣橱', icon: 'M4 7h16v13H4zM9 7V4h6v3' },
-  { to: '/lab', label: '搭配', icon: 'M5 5h6v6H5zM13 13h6v6h-6zM13 5h6v6h-6z' },
-  { to: '/calendar', label: '记录', icon: 'M4 6h16v14H4zM8 3v4M16 3v4M4 10h16' },
+  { to: '/', label: '今日', icon: 'M4 11l8-7 8 7v9H4z', spacer: false },
+  { to: '/wardrobe', label: '衣橱', icon: 'M4 7h16v13H4zM9 7V4h6v3', spacer: false },
+  { to: '', label: '', icon: '', spacer: true },
+  { to: '/lab', label: '搭配', icon: 'M5 5h6v6H5zM13 13h6v6h-6zM13 5h6v6h-6z', spacer: false },
+  { to: '/calendar', label: '记录', icon: 'M4 6h16v14H4zM8 3v4M16 3v4M4 10h16', spacer: false },
 ]
 </script>
 
 <template>
   <nav class="tabbar">
-    <router-link v-for="(l, i) in links" :key="l.to" :to="l.to" class="tab" :class="{ spacer: i === 2 }">
-      <template v-if="i !== 2">
+    <template v-for="(l, i) in links" :key="i">
+      <div v-if="l.spacer" class="tab spacer" aria-hidden="true"></div>
+      <router-link v-else :to="l.to" class="tab">
         <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.6">
           <path :d="l.icon" stroke-linecap="round" stroke-linejoin="round" />
         </svg>
         <span>{{ l.label }}</span>
-      </template>
-    </router-link>
+      </router-link>
+    </template>
   </nav>
 </template>
 

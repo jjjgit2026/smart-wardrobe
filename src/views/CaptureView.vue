@@ -13,6 +13,7 @@ const wardrobe = useWardrobeStore()
 const router = useRouter()
 const message = useMessage()
 const fileInput = ref<HTMLInputElement | null>(null)
+const albumInput = ref<HTMLInputElement | null>(null)
 const previewUrl = ref('')
 const blobs = ref<{ main: Blob; thumb: Blob } | null>(null)
 const saving = ref(false)
@@ -88,6 +89,7 @@ function reset() {
   form.styleTags = ''
   form.sceneBlacklist = ''
   if (fileInput.value) fileInput.value.value = ''
+  if (albumInput.value) albumInput.value.value = ''
 }
 
 async function save(again = false) {
@@ -151,7 +153,11 @@ onUnmounted(() => { if (previewUrl.value) URL.revokeObjectURL(previewUrl.value) 
       </div>
     </div>
     <input ref="fileInput" type="file" accept="image/*" capture="environment" class="file" @change="onFile" />
-    <button class="warm-btn wide" @click="fileInput?.click()">{{ previewUrl ? '重新拍照 / 换图' : '拍照或选择图片' }}</button>
+    <input ref="albumInput" type="file" accept="image/*" class="file" @change="onFile" />
+    <div class="row actions">
+      <button class="warm-btn primary" @click="fileInput?.click()">拍照</button>
+      <button class="warm-btn" @click="albumInput?.click()">从相册选择</button>
+    </div>
 
     <div class="section-title"><h3>衣物信息</h3><button class="link" @click="recompute">按规则重算适温</button></div>
     <div class="form card">

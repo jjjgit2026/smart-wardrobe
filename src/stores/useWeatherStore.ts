@@ -2,7 +2,7 @@ import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import type { Season, WeatherNow } from '../types'
 import { useSettingsStore } from './useSettingsStore'
-import { locate } from '../services/weather/locate'
+import { locate, locateByIP } from '../services/weather/locate'
 import {
   cacheIsFresh,
   describeWeather,
@@ -44,9 +44,18 @@ export const useWeatherStore = defineStore('weather', () => {
     error.value = ''
     try {
       const settings = useSettingsStore()
-      const coords = await locate()
+      let coords = await locate()
+      let source: WeatherNow['source'] = 'geo'
+      if (!coords) {
+        const byIP = await locateByIP()
+        if (byIP) {
+          coords = byIP
+          source = 'city'
+        }
+      }
       if (coords) {
-        const w = await fetchWeather(coords, '当前位置', 'geo')
+        const cityName = coords.city && coords.city.trim() ? coords.city : '当前位置'
+        const w = await fetchWeather(coords, cityName, source)
         now.value = w
         await saveWeather(w)
         return

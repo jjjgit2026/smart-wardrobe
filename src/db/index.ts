@@ -26,6 +26,10 @@ db.version(1).stores({
   weatherCache: 'key',
 })
 
+db.version(2).stores({
+  garments: 'id, createdAt, category, status, *seasons, layerRole, lastWornAt, wearCount, wearsSinceWash',
+})
+
 export function uid(): string {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID()
   return `${Date.now()}-${Math.random().toString(36).slice(2)}`

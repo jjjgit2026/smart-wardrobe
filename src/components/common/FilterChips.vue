@@ -1,17 +1,29 @@
 <script setup lang="ts">
-defineProps<{ options: string[]; modelValue: string }>()
+import { computed } from 'vue'
+
+export type ChipOption = string | { label: string; value: string }
+
+const props = defineProps<{ options: ChipOption[]; modelValue: string }>()
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
+
+function valueOf(opt: ChipOption): string {
+  return typeof opt === 'string' ? opt : opt.value
+}
+function labelOf(opt: ChipOption): string {
+  return typeof opt === 'string' ? opt : opt.label
+}
+const normalized = computed(() => props.options.map((o) => ({ value: valueOf(o), label: labelOf(o) })))
 </script>
 
 <template>
   <div class="chips no-scrollbar">
     <button
-      v-for="opt in options"
-      :key="opt"
+      v-for="opt in normalized"
+      :key="opt.value"
       class="chip"
-      :class="{ active: modelValue === opt }"
-      @click="emit('update:modelValue', opt)"
-    >{{ opt }}</button>
+      :class="{ active: modelValue === opt.value }"
+      @click="emit('update:modelValue', opt.value)"
+    >{{ opt.label }}</button>
   </div>
 </template>
 

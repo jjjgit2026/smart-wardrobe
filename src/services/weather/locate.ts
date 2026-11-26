@@ -1,6 +1,25 @@
 export interface Coords {
   lat: number
   lon: number
+  city?: string
+}
+
+export async function locateByIP(): Promise<Coords | null> {
+  try {
+    const res = await fetch('https://ipwho.is/?lang=zh-CN')
+    if (!res.ok) return null
+    const json = await res.json() as {
+      success?: boolean
+      latitude?: number
+      longitude?: number
+      city?: string
+    }
+    if (json.success === false) return null
+    if (typeof json.latitude !== 'number' || typeof json.longitude !== 'number') return null
+    return { lat: json.latitude, lon: json.longitude, city: json.city }
+  } catch {
+    return null
+  }
 }
 
 export async function locate(): Promise<Coords | null> {

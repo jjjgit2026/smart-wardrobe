@@ -30,10 +30,8 @@ npm run build     # vue-tsc 类型检查 + Vite 生产构建
 
 1. **新建公开仓库**  
    在 github.com 新建一个 Public 仓库，例如 `smart-wardrobe`。免费账户的 GitHub Pages 要求仓库必须是 Public。
-
 2. **本地初始化并推送**  
    在本项目目录执行：
-
    ```bash
    git init -b main
    git add .
@@ -41,24 +39,20 @@ npm run build     # vue-tsc 类型检查 + Vite 生产构建
    git remote add origin https://github.com/<你的用户名>/smart-wardrobe.git
    git push -u origin main
    ```
-
    > 若本地已配置 Git 凭据助手，推送时不要再粘贴密码。建议改用 Personal Access Token 或 SSH key，并开启两步验证。
-
 3. **开启 Pages**  
    仓库 → Settings → Pages → Build and deployment：
    - Source 选择 **GitHub Actions**
    - 保存后，`.github/workflows/deploy.yml` 会在每次 push 到 `main` 时自动构建并部署
-
 4. **验证部署**  
    Actions 页出现绿色勾后，访问：
+
 
    ```
    https://<你的用户名>.github.io/smart-wardrobe/
    ```
-
    工作流里已设置 `VITE_BASE_PATH=/${{ github.event.repository.name }}/`，`vite.config.ts` 会据此生成正确的静态资源路径；路由使用 hash 模式，刷新子页面不会 404。
-
-5. **安全复核**  
+5. **安全复核**
    - 确认仓库里没有任何照片、`.env`、密钥文件
    - `.gitignore` 已排除 `node_modules/`、`dist/`、`.env*`、`*.local`
    - **你此前在聊天中发过 GitHub 明文登录信息，请立即改密并开启两步验证**
@@ -67,14 +61,14 @@ npm run build     # vue-tsc 类型检查 + Vite 生产构建
 
 ## 3. 已实现的阶段一功能
 
-| 模块 | 内容 |
-| --- | --- |
-| 今日穿搭 | 天气胶囊、待清洗提醒、Top N 搭配、换一套、穿这套、今日记录与撤销 |
-| 衣橱 | 搜索、季节/品类/状态筛选、2/3/4 列自适应网格、详情编辑、适温规则重算、清洗/删除 |
-| 拍照录入 | 相机/相册、canvas 压缩为 WebP、剥离 EXIF/GPS、主色提取、手动打标、规则推导预览 |
-| 搭配实验室 | 场景、温度滑块、降水/大风开关、Top N、可解释推荐理由 |
-| 穿搭日历 | 月历角标、月度统计、最常穿 Top3、场景分布、记录时间线与撤销 |
-| 设置 | 城市与手动温度、清洗阈值表、推荐偏好、备份导出/导入、存储用量、持久化申请、示例数据、清空数据 |
+| 模块    | 内容                                                 |
+| ----- | -------------------------------------------------- |
+| 今日穿搭  | 天气胶囊、待清洗提醒、Top N 搭配、换一套、穿这套、今日记录与撤销                |
+| 衣橱    | 搜索、季节/品类/状态筛选、2/3/4 列自适应网格、详情编辑、适温规则重算、清洗/删除       |
+| 拍照录入  | 相机/相册、canvas 压缩为 WebP、剥离 EXIF/GPS、主色提取、手动打标、规则推导预览 |
+| 搭配实验室 | 场景、温度滑块、降水/大风开关、Top N、可解释推荐理由                      |
+| 穿搭日历  | 月历角标、月度统计、最常穿 Top3、场景分布、记录时间线与撤销                   |
+| 设置    | 城市与手动温度、清洗阈值表、推荐偏好、备份导出/导入、存储用量、持久化申请、示例数据、清空数据    |
 
 领域规则全部是可单测的纯 TypeScript：
 

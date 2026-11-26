@@ -32,8 +32,15 @@ const categoryOptions = [
   { label: '全部', value: '全部' },
   { label: '上装', value: 'top' }, { label: '下装', value: 'bottom' },
   { label: '外套', value: 'outerwear' }, { label: '连体', value: 'onePiece' },
+  { label: '鞋履', value: 'shoes' }, { label: '配饰', value: 'accessory' },
 ]
-const statusOptions = ['全部', 'available', 'needsWash', 'washing', 'archived']
+const statusOptions: Array<{ label: string; value: string }> = [
+  { label: '全部', value: '全部' },
+  { label: '可用', value: 'available' },
+  { label: '待清洗', value: 'needsWash' },
+  { label: '洗中', value: 'washing' },
+  { label: '已归档', value: 'archived' },
+]
 const statusLabel: Record<string, string> = { available: '可用', needsWash: '待清洗', washing: '洗中', archived: '已归档' }
 const thicknessOptions = [1, 2, 3, 4, 5].map((v) => ({ label: `${v} 级`, value: v }))
 

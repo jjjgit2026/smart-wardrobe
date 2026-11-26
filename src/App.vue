@@ -15,8 +15,8 @@ const weather = useWeatherStore()
 const subscriptions: Array<{ unsubscribe: () => void }> = []
 
 onMounted(async () => {
-  await settings.init()
-  await wardrobe.refresh()
+  try { await settings.init() } catch { /* 设置读取失败用默认值 */ }
+  try { await wardrobe.refresh() } catch { /* liveQuery 会兜底推送数据 */ }
   weather.init().catch(() => undefined)
   subscriptions.push(
     liveQuery(() => db.garments.toArray()).subscribe({ next: (v) => { wardrobe.garments = v } }),
