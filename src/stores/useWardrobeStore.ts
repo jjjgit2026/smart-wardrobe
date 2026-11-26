@@ -76,6 +76,9 @@ export const useWardrobeStore = defineStore('wardrobe', () => {
       { category: 'outerwear', subCategory: '卡其风衣', colorName: '卡其色', dominantColor: '#B49A6C', thickness: 3, sleeveLength: 'long', materialLook: '棉', styleTags: ['通勤'], sceneBlacklist: [] },
       { category: 'outerwear', subCategory: '藏青羽绒服', colorName: '藏青色', dominantColor: '#243B57', thickness: 5, sleeveLength: 'long', materialLook: '羽绒', styleTags: ['休闲'], sceneBlacklist: ['正式'] },
       { category: 'onePiece', subCategory: '黑色连衣裙', colorName: '黑色', dominantColor: '#222222', thickness: 2, sleeveLength: 'short', materialLook: '雪纺', styleTags: ['正式'], sceneBlacklist: [] },
+      { category: 'shoes', subCategory: '白色运动鞋', colorName: '白色', dominantColor: '#F5F3EC', thickness: 2, sleeveLength: 'none', materialLook: '皮革', styleTags: ['休闲'], sceneBlacklist: ['正式'] },
+      { category: 'shoes', subCategory: '棕色皮鞋', colorName: '棕色', dominantColor: '#6B4F3A', thickness: 3, sleeveLength: 'none', materialLook: '皮革', styleTags: ['通勤', '正式'], sceneBlacklist: [] },
+      { category: 'shoes', subCategory: '黑色短靴', colorName: '黑色', dominantColor: '#2E2E2E', thickness: 4, sleeveLength: 'none', materialLook: '皮革', styleTags: ['休闲'], sceneBlacklist: ['正式'] },
     ]
     await db.transaction('rw', db.garments, async () => {
       for (const seed of seeds) {

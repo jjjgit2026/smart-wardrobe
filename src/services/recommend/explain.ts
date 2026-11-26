@@ -9,10 +9,14 @@ const LABELS: Record<keyof ScoreParts, string> = {
   balance: '穿着均衡',
   freshness: '久未穿着',
   hygiene: '洁净程度',
+  preference: '你的偏好',
 }
 
-export function explainOutfit(items: Garment[], parts: ScoreParts, temp: number, scene: string): string[] {
+export function explainOutfit(items: Garment[], parts: ScoreParts, temp: number, scene: string, rain = false, wind = false): string[] {
   const reasons: string[] = []
+  const hasOuter = items.some((g) => g.layerRole === 'outer')
+  if (wind && hasOuter) reasons.push('大风天安排了外套挡风')
+  else if (rain && hasOuter) reasons.push('有降水，安排了外套防雨')
   const ranked = (Object.keys(parts) as Array<keyof ScoreParts>)
     .filter((k) => k !== 'sceneFit')
     .sort((a, b) => parts[b] - parts[a])
@@ -32,6 +36,8 @@ export function explainOutfit(items: Garment[], parts: ScoreParts, temp: number,
       reasons.push('有单品很久没上身了，今天可以安排')
     } else if (key === 'hygiene') {
       reasons.push('整套都还可以继续穿，不需要先洗')
+    } else if (key === 'preference') {
+      reasons.push('更贴近你以往爱选的颜色和风格')
     } else {
       reasons.push(LABELS[key])
     }

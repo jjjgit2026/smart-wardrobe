@@ -6,7 +6,9 @@ import { useWardrobeStore } from '../stores/useWardrobeStore'
 import { useWeatherStore } from '../stores/useWeatherStore'
 import { useSettingsStore, SCENES } from '../stores/useSettingsStore'
 import { recommend, type ScoredOutfit } from '../services/recommend/engine'
+import { buildPreferenceModel } from '../services/recommend/preference'
 import { DuplicateWearError, logWear } from '../services/wear/logWear'
+import { recordFeedback } from '../services/wear/feedback'
 import type { Garment } from '../types'
 
 const wardrobe = useWardrobeStore()
@@ -33,7 +35,9 @@ const results = computed<ScoredOutfit[]>(() => recommend(wardrobe.garments, {
   wind: wind.value,
   topN: topN.value,
   excludeOutfitIds: excluded.value,
-}))
+}, wardrobe.feedback))
+
+const learning = computed(() => buildPreferenceModel(wardrobe.feedback, wardrobe.garments))
 
 function itemsOf(o: ScoredOutfit): Garment[] {
   return o.garmentIds.map((id) => wardrobe.garments.find((g) => g.id === id)).filter(Boolean) as Garment[]
@@ -54,12 +58,24 @@ async function wear(o: ScoredOutfit) {
     message.warning(e instanceof DuplicateWearError ? e.message : '记录失败')
   }
 }
+
+async function reject(o: ScoredOutfit) {
+  await recordFeedback(o.id, o.garmentIds, 'reject', { scene: scene.value, temp: temp.value })
+  reshuffle()
+  await wardrobe.refresh()
+  message.success('已记住，后续推荐会避开这类搭配')
+}
 </script>
 
 <template>
   <div class="page">
     <h1 class="page-title">搭配实验室</h1>
     <div class="page-sub">设定条件，本地规则引擎即时生成可解释的搭配。</div>
+
+    <div class="learning card">
+      <span v-if="!learning.ready">正在学习你的偏好 {{ learning.sampleCount }}/10 条 · 采纳或点「不喜欢」来教会它</span>
+      <span v-else>已根据你的 {{ learning.sampleCount }} 次选择调整推荐</span>
+    </div>
 
     <div class="panel card">
       <label>场景</label>
@@ -81,7 +97,7 @@ async function wear(o: ScoredOutfit) {
     <div v-if="results.length" class="results">
       <outfit-card
         v-for="o in results" :key="o.id" :outfit="o" :items="itemsOf(o)" :temp="temp"
-        @wear="wear(o)" @swap="reshuffle" @reject="reshuffle"
+        @wear="wear(o)" @swap="reshuffle" @reject="reject(o)"
       />
     </div>
     <div v-else class="empty card">
@@ -92,6 +108,7 @@ async function wear(o: ScoredOutfit) {
 </template>
 
 <style scoped>
+.learning { padding: 8px 12px; font-size: 12px; color: var(--text-3); margin-bottom: 12px; }
 .panel { padding: 16px; display: flex; flex-direction: column; gap: 8px; }
 .panel label { font-size: 12px; color: var(--text-3); margin-top: 6px; }
 .switches { padding: 6px 0; }

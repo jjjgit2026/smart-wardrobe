@@ -51,10 +51,12 @@ export function outfitTempRange(
   items: Array<{ tempMin: number; tempMax: number; layerRole: string }>
 ): [number, number] {
   if (!items.length) return [0, 0]
-  const min = Math.min(...items.map((i) => i.tempMin))
-  const base = items.filter((i) => i.layerRole !== 'outer' && i.layerRole !== 'accessory')
-  const candidates = base.length ? base : items
-  const hasOuter = items.some((i) => i.layerRole === 'outer')
+  const core = items.filter((i) => i.layerRole !== 'accessory')
+  const pool = core.length ? core : items
+  const min = Math.min(...pool.map((i) => i.tempMin))
+  const base = pool.filter((i) => i.layerRole !== 'outer')
+  const candidates = base.length ? base : pool
+  const hasOuter = pool.some((i) => i.layerRole === 'outer')
   const max = Math.min(...candidates.map((i) => i.tempMax)) - (hasOuter ? 2 : 0)
   return [min, Math.max(min + 2, max)]
 }

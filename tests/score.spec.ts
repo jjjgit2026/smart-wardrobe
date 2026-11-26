@@ -54,4 +54,16 @@ describe('recommend 硬约束', () => {
     const results = recommend(items, { scene: '日常', temp: 33, season: '夏', rain: false, wind: false, topN: 5 })
     expect(results.every((o) => !o.garmentIds.includes('outer'))).toBe(true)
   })
+
+  it('大风天强制包含外层，且理由说明挡风', () => {
+    const results = recommend(items, { scene: '日常', temp: 12, season: '秋', rain: false, wind: true, topN: 5 })
+    expect(results.length).toBeGreaterThan(0)
+    expect(results.every((o) => o.garmentIds.includes('outer'))).toBe(true)
+    expect(results.every((o) => o.reasons.some((r) => r.includes('大风')))).toBe(true)
+  })
+
+  it('无风无雨时不强制外层', () => {
+    const results = recommend(items, { scene: '日常', temp: 20, season: '秋', rain: false, wind: false, topN: 5 })
+    expect(results.some((o) => !o.garmentIds.includes('outer'))).toBe(true)
+  })
 })

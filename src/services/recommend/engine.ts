@@ -1,6 +1,8 @@
-import type { Garment, Outfit, RecommendConditions } from '../../types'
+import type { Feedback, Garment, Outfit, RecommendConditions } from '../../types'
+import { colorHarmony } from '../rules/colorRules'
 import { outfitTempRange } from '../rules/derive'
 import { explainOutfit } from './explain'
+import { preferenceScore, buildPreferenceModel, type PreferenceModel } from './preference'
 import { scoreOutfit, type ScoreParts } from './score'
 
 const MAX_PER_BUCKET = 12
@@ -29,17 +31,41 @@ function hardOk(items: Garment[], cond: RecommendConditions): boolean {
   if (items.some((g) => g.status !== 'available')) return false
   if (items.some((g) => g.sceneBlacklist.includes(cond.scene))) return false
   if (cond.rain && !items.some((g) => g.layerRole === 'outer')) return false
+  if (cond.wind && !items.some((g) => g.layerRole === 'outer')) return false
   if (cond.temp < 5 && !items.some((g) => g.layerRole === 'outer')) return false
   if (cond.temp > 30 && items.some((g) => g.thickness >= 4)) return false
   const [min, max] = outfitTempRange(items)
   return cond.temp >= min - 3 && cond.temp <= max + 3
 }
 
-export interface ScoredOutfit extends Outfit {
-  parts: ScoreParts
+function chooseShoe(
+  shoes: Garment[],
+  items: Garment[],
+  cond: RecommendConditions,
+  model: PreferenceModel
+): Garment | null {
+  if (!shoes.length) return null
+  const colors = items.map((g) => g.dominantColor || g.colorName)
+  const scoreOf = (shoe: Garment) => {
+    const tempFit = 1 - Math.min(1, Math.abs(cond.temp - (shoe.tempMin + shoe.tempMax) / 2) / 20)
+    const pref = model.ready ? preferenceScore([shoe], model) : 0.5
+    const harmony = colorHarmony([...colors, shoe.dominantColor || shoe.colorName])
+    return tempFit * 0.2 + pref * 0.3 + harmony * 0.5
+  }
+  return shoes.slice().sort((a, b) => scoreOf(b) - scoreOf(a))[0]
 }
 
-export function recommend(garments: Garment[], cond: RecommendConditions): ScoredOutfit[] {
+export interface ScoredOutfit extends Outfit {
+  parts: ScoreParts
+  shoeId?: string
+}
+
+export function recommend(
+  garments: Garment[],
+  cond: RecommendConditions,
+  feedback: Feedback[] = []
+): ScoredOutfit[] {
+  const model = buildPreferenceModel(feedback, garments)
   const usable = garments.filter(
     (g) => g.layerRole !== 'accessory' && cond.temp >= g.tempMin - 10 && cond.temp <= g.tempMax + 10
   )
@@ -57,6 +83,9 @@ export function recommend(garments: Garment[], cond: RecommendConditions): Score
   const bottoms = pick('bottom')
   const outers = pick('outer')
   const onePieces = pick('onePiece')
+  const shoes = garments.filter(
+    (g) => g.category === 'shoes' && g.status === 'available' && !g.sceneBlacklist.includes(cond.scene)
+  )
   const mean = meanWearByCategory(garments)
   const now = Date.now()
 
@@ -76,13 +105,22 @@ export function recommend(garments: Garment[], cond: RecommendConditions): Score
   const seen = new Set<string>()
   const results: ScoredOutfit[] = []
 
-  for (const items of combos) {
-    if (!hardOk(items, cond)) continue
-    const fp = fingerprint(items.map((g) => g.id))
+  for (const base of combos) {
+    if (!hardOk(base, cond)) continue
+    const fp = fingerprint(base.map((g) => g.id))
     if (seen.has(fp)) continue
     seen.add(fp)
     if (exclude.has(`rule-${fp}`)) continue
-    const { score, parts } = scoreOutfit(items, { temp: cond.temp, scene: cond.scene, meanWearByCategory: mean, now })
+
+    const shoe = chooseShoe(shoes, base, cond, model)
+    const items = shoe ? [...base, shoe] : base
+    const { score, parts } = scoreOutfit(items, {
+      temp: cond.temp,
+      scene: cond.scene,
+      meanWearByCategory: mean,
+      now,
+      preferenceModel: model,
+    })
     const [min, max] = outfitTempRange(items)
     results.push({
       id: `rule-${fp}`,
@@ -91,11 +129,12 @@ export function recommend(garments: Garment[], cond: RecommendConditions): Score
       sceneTags: cond.scene ? [cond.scene] : [],
       tempRange: [min, max],
       score: Math.round(score * 1000) / 1000,
-      reasons: explainOutfit(items, parts, cond.temp, cond.scene),
+      reasons: explainOutfit(items, parts, cond.temp, cond.scene, cond.rain, cond.wind),
       parts,
       source: 'rule',
       createdAt: now,
       acceptCount: 0,
+      shoeId: shoe?.id,
     })
   }
 

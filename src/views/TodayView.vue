@@ -9,7 +9,9 @@ import { useWardrobeStore } from '../stores/useWardrobeStore'
 import { useWeatherStore } from '../stores/useWeatherStore'
 import { useSettingsStore } from '../stores/useSettingsStore'
 import { recommend, type ScoredOutfit } from '../services/recommend/engine'
+import { buildPreferenceModel } from '../services/recommend/preference'
 import { DuplicateWearError, logWear, markWashed, undoWear } from '../services/wear/logWear'
+import { recordFeedback } from '../services/wear/feedback'
 import type { Garment } from '../types'
 
 const wardrobe = useWardrobeStore()
@@ -38,8 +40,10 @@ const outfits = computed<ScoredOutfit[]>(() => {
     wind: weather.wind,
     topN: settings.topN,
     excludeOutfitIds: excluded.value,
-  })
+  }, wardrobe.feedback)
 })
+
+const learning = computed(() => buildPreferenceModel(wardrobe.feedback, wardrobe.garments))
 
 function itemsOf(o: OutfitLike): Garment[] {
   return o.garmentIds.map((id) => wardrobe.garments.find((g) => g.id === id)).filter(Boolean) as Garment[]
@@ -86,6 +90,16 @@ async function undo(id: string) {
   await wardrobe.refresh()
   message.success('已撤销记录')
 }
+
+async function reject(o: ScoredOutfit) {
+  await recordFeedback(o.id, o.garmentIds, 'reject', {
+    scene: settings.defaultScene,
+    temp: weather.effectiveTemp,
+  })
+  swap()
+  await wardrobe.refresh()
+  message.success('已记住，后续推荐会避开这类搭配')
+}
 </script>
 
 <template>
@@ -101,6 +115,13 @@ async function undo(id: string) {
     <weather-pill :weather="weather.now" :loading="weather.loading" @refresh="refreshWeather" />
     <reminder-bar :items="wardrobe.toWash" @washed="washed" @open="router.push('/wardrobe')" />
 
+    <div class="learning card" v-if="!learning.ready">
+      <span>正在学习你的偏好 {{ learning.sampleCount }}/10 条 · 点「穿这套」或「不喜欢」来教会它</span>
+    </div>
+    <div class="learning card ready" v-else>
+      <span>已根据你的 {{ learning.sampleCount }} 次选择调整推荐</span>
+    </div>
+
     <div class="section-title">
       <h2>为你搭好了</h2>
       <button class="link" @click="swap">换一批</button>
@@ -115,7 +136,7 @@ async function undo(id: string) {
         :temp="weather.effectiveTemp"
         @wear="wear(o)"
         @swap="swap"
-        @reject="swap"
+        @reject="reject(o)"
       />
     </template>
     <div v-else class="empty card">
@@ -145,6 +166,8 @@ async function undo(id: string) {
 .link { border: 0; background: transparent; color: var(--primary); font-size: 13px; cursor: pointer; }
 .empty { text-align: center; padding: 40px 20px; margin-top: 8px; }
 .empty-icon { width: 56px; height: 56px; margin: 0 auto 12px; border-radius: 18px; background: var(--primary-wash); color: var(--primary); display: grid; place-items: center; font-family: var(--font-serif); font-size: 24px; }
+.learning { padding: 8px 12px; font-size: 12px; color: var(--text-3); margin-top: 8px; }
+.learning.ready { color: var(--success); }
 .today { padding: 14px; }
 .today-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
 .today-row:last-child { border-bottom: 0; }

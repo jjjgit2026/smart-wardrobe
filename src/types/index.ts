@@ -67,6 +67,8 @@ export interface Feedback {
   outfitId: string
   action: 'accept' | 'reject' | 'replace' | 'skip'
   scene: string
+  garmentIds: string[]
+  temp?: number
   createdAt: number
 }
 

@@ -1,14 +1,16 @@
 import type { Garment } from '../../types'
 import { colorHarmony } from '../rules/colorRules'
 import { outfitTempRange } from '../rules/derive'
+import { preferenceScore, type PreferenceModel } from './preference'
 
 export const WEIGHTS = {
-  tempFit: 0.28,
-  sceneFit: 0.18,
-  colorHarmony: 0.18,
-  balance: 0.14,
-  freshness: 0.1,
-  hygiene: 0.12,
+  tempFit: 0.25,
+  sceneFit: 0.16,
+  colorHarmony: 0.16,
+  balance: 0.12,
+  freshness: 0.09,
+  hygiene: 0.1,
+  preference: 0.12,
 } as const
 
 export type ScoreParts = Record<keyof typeof WEIGHTS, number>
@@ -18,6 +20,7 @@ export interface ScoreContext {
   scene: string
   meanWearByCategory: Record<string, number>
   now: number
+  preferenceModel?: PreferenceModel
 }
 
 function clamp01(n: number): number {
@@ -63,6 +66,7 @@ export function scoreOutfit(items: Garment[], ctx: ScoreContext): { score: numbe
     balance: balance(items, ctx.meanWearByCategory),
     freshness: freshness(items, ctx.now),
     hygiene: hygiene(items),
+    preference: ctx.preferenceModel ? preferenceScore(items, ctx.preferenceModel) : 0.5,
   }
   const score = (Object.keys(WEIGHTS) as Array<keyof typeof WEIGHTS>).reduce(
     (sum, key) => sum + parts[key] * WEIGHTS[key], 0

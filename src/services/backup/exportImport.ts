@@ -1,12 +1,13 @@
 import { db } from '../../db'
-import type { Garment, Outfit, WearLog } from '../../types'
+import type { Feedback, Garment, Outfit, WearLog } from '../../types'
 
 export interface BackupFile {
-  version: 1
+  version: 1 | 2
   exportedAt: number
   garments: Array<Omit<Garment, 'photoBlob' | 'thumbBlob'> & { photo?: string; thumb?: string }>
   outfits: Outfit[]
   wearLogs: WearLog[]
+  feedback: Feedback[]
 }
 
 function blobToDataUrl(blob?: Blob): Promise<string | undefined> {
@@ -32,7 +33,7 @@ function dataUrlToBlob(data?: string): Blob | undefined {
 export async function exportBackup(): Promise<BackupFile> {
   const garments = await db.garments.toArray()
   return {
-    version: 1,
+    version: 2,
     exportedAt: Date.now(),
     garments: await Promise.all(
       garments.map(async (g) => {
@@ -42,6 +43,7 @@ export async function exportBackup(): Promise<BackupFile> {
     ),
     outfits: await db.outfits.toArray(),
     wearLogs: await db.wearLogs.toArray(),
+    feedback: await db.feedback.toArray(),
   }
 }
 
@@ -58,9 +60,9 @@ export async function downloadBackup(): Promise<void> {
 
 export async function importBackup(file: File): Promise<{ added: number }> {
   const raw = JSON.parse(await file.text()) as BackupFile
-  if (raw.version !== 1 || !Array.isArray(raw.garments)) throw new Error('备份文件格式不正确')
+  if ((raw.version !== 1 && raw.version !== 2) || !Array.isArray(raw.garments)) throw new Error('备份文件格式不正确')
   let added = 0
-  await db.transaction('rw', db.garments, db.outfits, db.wearLogs, async () => {
+  await db.transaction('rw', db.garments, db.outfits, db.wearLogs, db.feedback, async () => {
     for (const item of raw.garments) {
       const exists = await db.garments.get(item.id)
       if (exists) continue
@@ -77,6 +79,9 @@ export async function importBackup(file: File): Promise<{ added: number }> {
     }
     for (const l of raw.wearLogs || []) {
       if (!(await db.wearLogs.get(l.id))) await db.wearLogs.add(l)
+    }
+    for (const f of raw.feedback || []) {
+      if (!(await db.feedback.get(f.id))) await db.feedback.add(f)
     }
   })
   return { added }

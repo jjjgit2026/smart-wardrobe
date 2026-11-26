@@ -71,6 +71,8 @@ export async function logWear(outfit: Outfit, ctx: WearContext, force = false): 
       outfitId: outfit.id,
       action: 'accept',
       scene: ctx.scene,
+      garmentIds: outfit.garmentIds.slice(),
+      temp: ctx.temp,
       createdAt: ts,
     })
     return logId
