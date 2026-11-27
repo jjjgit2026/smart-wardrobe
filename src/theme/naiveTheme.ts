@@ -34,8 +34,10 @@ export const creamTheme: GlobalThemeOverrides = {
     heightMedium: '40px',
   },
   Card: { borderRadius: '16px' },
-  Input: { borderRadius: '10px' },
-  Select: { borderRadius: '10px' },
+  Input: { borderRadius: '10px', fontSize: '16px' },
+  InputNumber: { borderRadius: '10px', fontSize: '16px' },
+  Select: { borderRadius: '10px', fontSize: '16px' },
+  DatePicker: { borderRadius: '10px', fontSize: '16px' },
   Modal: { borderRadius: '22px' },
   Tag: { borderRadius: '999px' },
 }

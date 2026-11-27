@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Garment } from '../../types'
 defineProps<{ items: Garment[] }>()
-const emit = defineEmits<{ washed: [ids: string[]]; open: [] }>()
+const emit = defineEmits<{ washed: [ids: string[]]; sendWash: [ids: string[]]; open: [] }>()
 </script>
 
 <template>
@@ -10,8 +10,10 @@ const emit = defineEmits<{ washed: [ids: string[]]; open: [] }>()
     <div class="body">
       <div class="title">{{ items.length }} 件该洗了</div>
       <div class="sub">{{ items.slice(0, 3).map(g => g.subCategory).join('、') }}{{ items.length > 3 ? ' 等' : '' }}</div>
+      <div class="hint">仍会参与搭配 · 送洗后暂停推荐</div>
     </div>
     <button class="mini" @click="emit('open')">查看</button>
+    <button class="mini" @click="emit('sendWash', items.map(g => g.id))">送洗</button>
     <button class="mini solid" @click="emit('washed', items.map(g => g.id))">已清洗</button>
   </div>
 </template>
@@ -29,6 +31,7 @@ const emit = defineEmits<{ washed: [ids: string[]]; open: [] }>()
 .body { flex: 1; min-width: 0; }
 .title { font-size: 13px; font-weight: 600; }
 .sub { font-size: 11px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hint { font-size: 11px; color: var(--primary); margin-top: 2px; }
 .mini {
   border: 1px solid var(--border-strong); background: var(--surface); color: var(--primary-ink);
   border-radius: var(--r-pill); padding: 5px 10px; font-size: 12px; cursor: pointer; white-space: nowrap;

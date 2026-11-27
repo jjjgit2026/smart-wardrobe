@@ -1,5 +1,6 @@
 import type { Garment } from '../../types'
 import { outfitTempRange } from '../rules/derive'
+import { rolesOf } from '../rules/layerLabels'
 import type { ScoreParts } from './score'
 
 const LABELS: Record<keyof ScoreParts, string> = {
@@ -14,7 +15,7 @@ const LABELS: Record<keyof ScoreParts, string> = {
 
 export function explainOutfit(items: Garment[], parts: ScoreParts, temp: number, scene: string, rain = false, wind = false): string[] {
   const reasons: string[] = []
-  const hasOuter = items.some((g) => g.layerRole === 'outer')
+  const hasOuter = items.some((g) => rolesOf(g).includes('outer'))
   if (wind && hasOuter) reasons.push('大风天安排了外套挡风')
   else if (rain && hasOuter) reasons.push('有降水，安排了外套防雨')
   const ranked = (Object.keys(parts) as Array<keyof ScoreParts>)

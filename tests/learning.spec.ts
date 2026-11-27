@@ -73,9 +73,15 @@ describe('鞋履搭配', () => {
     expect(withShoe[0].tempRange).toEqual(without[0].tempRange)
   })
 
-  it('待清洗的鞋不参与搭配', () => {
+  it('待清洗的鞋仍参与搭配', () => {
     const dirty = { ...shoe, status: 'needsWash' as const }
     const results = recommend([top, bottom, dirty], { scene: '日常', temp: 18, season: '秋', rain: false, wind: false, topN: 3 })
+    expect(results.every((o) => o.garmentIds.includes('shoe'))).toBe(true)
+  })
+
+  it('洗中的鞋不参与搭配', () => {
+    const washing = { ...shoe, status: 'washing' as const }
+    const results = recommend([top, bottom, washing], { scene: '日常', temp: 18, season: '秋', rain: false, wind: false, topN: 3 })
     expect(results.every((o) => !o.garmentIds.includes('shoe'))).toBe(true)
   })
 

@@ -10,7 +10,7 @@ import { useWeatherStore } from '../stores/useWeatherStore'
 import { useSettingsStore } from '../stores/useSettingsStore'
 import { recommend, type ScoredOutfit } from '../services/recommend/engine'
 import { buildPreferenceModel } from '../services/recommend/preference'
-import { DuplicateWearError, logWear, markWashed, undoWear } from '../services/wear/logWear'
+import { DuplicateWearError, logWear, markWashed, sendToWash, undoWear } from '../services/wear/logWear'
 import { recordFeedback } from '../services/wear/feedback'
 import type { Garment } from '../types'
 
@@ -76,6 +76,12 @@ async function washed(ids: string[]) {
   message.success('已标记清洗')
 }
 
+async function sendWash(ids: string[]) {
+  await sendToWash(ids)
+  await wardrobe.refresh()
+  message.success('已送洗，这些衣服暂时不参与搭配')
+}
+
 async function refreshWeather() {
   try {
     await weather.refresh()
@@ -113,7 +119,7 @@ async function reject(o: ScoredOutfit) {
     </div>
 
     <weather-pill :weather="weather.now" :loading="weather.loading" @refresh="refreshWeather" />
-    <reminder-bar :items="wardrobe.toWash" @washed="washed" @open="router.push('/wardrobe')" />
+    <reminder-bar :items="wardrobe.toWash" @washed="washed" @send-wash="sendWash" @open="router.push('/wardrobe')" />
 
     <div class="learning card" v-if="!learning.ready">
       <span>正在学习你的偏好 {{ learning.sampleCount }}/10 条 · 点「穿这套」或「不喜欢」来教会它</span>

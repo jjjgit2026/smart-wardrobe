@@ -54,6 +54,16 @@ h3 { font-size: 16px; line-height: 24px; font-family: var(--font-sans); }
 button { font-family: inherit; }
 a { color: var(--primary); }
 
+/* 防止 iOS Safari 聚焦输入框时自动放大页面：所有可聚焦输入控件字号需 >= 16px */
+input, textarea, select,
+.n-input__input-el,
+.n-input__textarea-el,
+.n-input-number__input,
+.n-base-selection__label,
+.n-base-select-input__input {
+  font-size: 16px;
+}
+
 .page {
   width: 100%;
   max-width: 480px;

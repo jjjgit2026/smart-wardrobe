@@ -1,5 +1,6 @@
-import type { Category, Season, SleeveLength, Thickness } from '../../types'
+import type { Category, LayerRole, Season, SleeveLength, Thickness } from '../../types'
 import { baseRule } from './tempTable'
+import { rolesOf } from './layerLabels'
 
 export interface DeriveInput {
   category: Category
@@ -48,15 +49,16 @@ export function normalizeSeasons(seasons: Season[]): Season[] {
 }
 
 export function outfitTempRange(
-  items: Array<{ tempMin: number; tempMax: number; layerRole: string }>
+  items: Array<{ tempMin: number; tempMax: number; layerRole: LayerRole; layerRoles?: LayerRole[] }>
 ): [number, number] {
   if (!items.length) return [0, 0]
-  const core = items.filter((i) => i.layerRole !== 'accessory')
+  const roles = (i: { layerRole: LayerRole; layerRoles?: LayerRole[] }) => rolesOf(i)
+  const core = items.filter((i) => !roles(i).includes('accessory'))
   const pool = core.length ? core : items
   const min = Math.min(...pool.map((i) => i.tempMin))
-  const base = pool.filter((i) => i.layerRole !== 'outer')
+  const base = pool.filter((i) => !roles(i).includes('outer'))
   const candidates = base.length ? base : pool
-  const hasOuter = pool.some((i) => i.layerRole === 'outer')
+  const hasOuter = pool.some((i) => roles(i).includes('outer'))
   const max = Math.min(...candidates.map((i) => i.tempMax)) - (hasOuter ? 2 : 0)
   return [min, Math.max(min + 2, max)]
 }

@@ -20,6 +20,8 @@ export interface Garment {
   tempMin: number
   tempMax: number
   layerRole: LayerRole
+  /** 可作穿着层级（多选）：inner/outer 等。缺省时按 layerRole 单值处理，兼容旧数据 */
+  layerRoles?: LayerRole[]
   styleTags: string[]
   sceneBlacklist: string[]
   status: GarmentStatus

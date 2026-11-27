@@ -5,6 +5,7 @@ import { feedbackRepo, garmentsRepo, outfitsRepo, wearLogsRepo } from '../db/rep
 import type { Feedback, Garment, Outfit, WearLog } from '../types'
 import { deriveGarmentRules } from '../services/rules/derive'
 import { washThreshold } from '../services/rules/washRules'
+import { isWearable } from '../services/wear/statusFlow'
 
 export const useWardrobeStore = defineStore('wardrobe', () => {
   const garments = ref<Garment[]>([])
@@ -26,6 +27,8 @@ export const useWardrobeStore = defineStore('wardrobe', () => {
   }
 
   const available = computed(() => garments.value.filter((g) => g.status === 'available'))
+  /** 可穿着的衣物：待清洗仍可穿，洗中/归档退出搭配池 */
+  const wearable = computed(() => garments.value.filter((g) => isWearable(g.status)))
   const toWash = computed(() => garments.value.filter((g) => g.status === 'needsWash'))
   const todayLogs = computed(() => {
     const key = new Date().toISOString().slice(0, 10)
@@ -66,10 +69,10 @@ export const useWardrobeStore = defineStore('wardrobe', () => {
 
   async function loadDemo() {
     const now = Date.now()
-    type DemoSeed = Pick<Garment, 'category' | 'subCategory' | 'colorName' | 'dominantColor' | 'thickness' | 'sleeveLength' | 'materialLook' | 'styleTags' | 'sceneBlacklist'>
+    type DemoSeed = Pick<Garment, 'category' | 'subCategory' | 'colorName' | 'dominantColor' | 'thickness' | 'sleeveLength' | 'materialLook' | 'styleTags' | 'sceneBlacklist'> & { layerRoles?: Garment['layerRoles'] }
     const seeds: DemoSeed[] = [
       { category: 'top', subCategory: '白T恤', colorName: '白色', dominantColor: '#F5F3EC', thickness: 1, sleeveLength: 'short', materialLook: '棉', styleTags: ['休闲'], sceneBlacklist: ['正式'] },
-      { category: 'top', subCategory: '燕麦针织', colorName: '燕麦色', dominantColor: '#D9C7AC', thickness: 3, sleeveLength: 'long', materialLook: '针织', styleTags: ['通勤'], sceneBlacklist: [] },
+      { category: 'top', subCategory: '燕麦针织', colorName: '燕麦色', dominantColor: '#D9C7AC', thickness: 3, sleeveLength: 'long', materialLook: '针织', styleTags: ['通勤'], sceneBlacklist: [], layerRoles: ['inner', 'outer'] },
       { category: 'top', subCategory: '深灰卫衣', colorName: '深灰色', dominantColor: '#5B5B5B', thickness: 4, sleeveLength: 'long', materialLook: '棉', styleTags: ['休闲'], sceneBlacklist: ['正式'] },
       { category: 'bottom', subCategory: '蓝色牛仔裤', colorName: '蓝色', dominantColor: '#4A6E96', thickness: 3, sleeveLength: 'none', materialLook: '牛仔', styleTags: ['休闲'], sceneBlacklist: ['正式'] },
       { category: 'bottom', subCategory: '黑色西装裤', colorName: '黑色', dominantColor: '#2E2E2E', thickness: 2, sleeveLength: 'none', materialLook: '西装面料', styleTags: ['通勤', '正式'], sceneBlacklist: [] },
@@ -103,7 +106,7 @@ export const useWardrobeStore = defineStore('wardrobe', () => {
 
   return {
     garments, outfits, wearLogs, feedback,
-    available, toWash, todayLogs,
+    available, wearable, toWash, todayLogs,
     refresh, addGarment, updateGarment, deleteGarment, saveOutfit, clearAll, loadDemo,
   }
 })

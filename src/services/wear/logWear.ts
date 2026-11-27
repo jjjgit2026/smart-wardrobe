@@ -1,6 +1,12 @@
 import { db, dateKey, uid } from '../../db'
 import type { Garment, Outfit, WearLog } from '../../types'
-import { needsWash } from '../rules/washRules'
+import {
+  statusAfterArchive,
+  statusAfterSendWash,
+  statusAfterUnarchive,
+  statusAfterWash,
+  statusAfterWear,
+} from './statusFlow'
 
 export interface WearContext {
   scene: string
@@ -57,8 +63,7 @@ export async function logWear(outfit: Outfit, ctx: WearContext, force = false): 
         lastWornAt: ts,
         updatedAt: ts,
       }
-      if (needsWash({ wearsSinceWash, washThreshold: g.washThreshold })) patch.status = 'needsWash'
-      else if (g.status === 'needsWash') patch.status = 'available'
+      patch.status = statusAfterWear(g, wearsSinceWash)
       await db.garments.update(id, patch)
     }
 
@@ -91,7 +96,7 @@ export async function undoWear(logId: string): Promise<void> {
       const wearCount = Math.max(0, g.wearCount - 1)
       const wearsSinceWash = Math.max(0, g.wearsSinceWash - 1)
       const patch: Partial<Garment> = { wearCount, wearsSinceWash, updatedAt: Date.now() }
-      patch.status = needsWash({ wearsSinceWash, washThreshold: g.washThreshold }) ? 'needsWash' : 'available'
+      patch.status = statusAfterWear(g, wearsSinceWash)
       await db.garments.update(id, patch)
     }
 
@@ -109,16 +114,51 @@ export async function undoWear(logId: string): Promise<void> {
   })
 }
 
-export async function markWashed(ids: string[]): Promise<void> {
+async function patchStatuses(
+  ids: string[],
+  patchOf: (g: Garment, ts: number) => Partial<Garment> | null
+): Promise<void> {
   const ts = Date.now()
   await db.transaction('rw', db.garments, async () => {
     for (const id of ids) {
-      await db.garments.update(id, {
-        wearsSinceWash: 0,
-        lastWashedAt: ts,
-        status: 'available',
-        updatedAt: ts,
-      })
+      const g = await db.garments.get(id)
+      if (!g) continue
+      const patch = patchOf(g, ts)
+      if (!patch) continue
+      await db.garments.update(id, { ...patch, updatedAt: ts })
     }
+  })
+}
+
+/** 洗完：待清洗/洗中 → 可用并重置计数；已归档件不受影响 */
+export async function markWashed(ids: string[]): Promise<void> {
+  await patchStatuses(ids, (g, ts) => {
+    const next = statusAfterWash(g.status)
+    if (next === 'archived') return null
+    return { status: next, wearsSinceWash: 0, lastWashedAt: ts }
+  })
+}
+
+/** 主动送洗：可穿着 → 洗中；洗中/归档件不重复处理 */
+export async function sendToWash(ids: string[]): Promise<void> {
+  await patchStatuses(ids, (g) => {
+    const next = statusAfterSendWash(g.status)
+    return next !== g.status ? { status: next } : null
+  })
+}
+
+/** 归档：可穿着 → 已归档；保留照片和穿着记录，退出搭配池 */
+export async function setArchived(ids: string[]): Promise<void> {
+  await patchStatuses(ids, (g) => {
+    const next = statusAfterArchive(g.status)
+    return next !== g.status ? { status: next } : null
+  })
+}
+
+/** 取消归档：已归档 → 可用；不重置穿着计数 */
+export async function unsetArchived(ids: string[]): Promise<void> {
+  await patchStatuses(ids, (g) => {
+    const next = statusAfterUnarchive(g.status)
+    return next !== g.status ? { status: next } : null
   })
 }

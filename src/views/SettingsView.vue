@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { NInput, NInputNumber, NSelect, useMessage } from 'naive-ui'
+import { NInput, NSelect, useMessage } from 'naive-ui'
+import TempStepper from '../components/common/TempStepper.vue'
 import { useWardrobeStore } from '../stores/useWardrobeStore'
 import { useWeatherStore } from '../stores/useWeatherStore'
 import { useSettingsStore, SCENES } from '../stores/useSettingsStore'
@@ -92,7 +93,7 @@ async function persist() {
       </div>
       <label>手动温度（无网络或不想定位时）</label>
       <div class="row">
-        <n-input-number v-model:value="manualTemp" :min="-30" :max="50" />
+        <temp-stepper :model-value="manualTemp" :min="-30" :max="50" @update:model-value="(v: number) => manualTemp = v" />
         <button class="warm-btn" @click="applyManual">使用</button>
       </div>
       <div class="muted">天气数据来自 Open-Meteo，遵循 CC BY 4.0，必须署名。</div>

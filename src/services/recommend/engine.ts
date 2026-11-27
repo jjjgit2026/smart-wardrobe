@@ -1,6 +1,8 @@
 import type { Feedback, Garment, Outfit, RecommendConditions } from '../../types'
 import { colorHarmony } from '../rules/colorRules'
 import { outfitTempRange } from '../rules/derive'
+import { rolesOf } from '../rules/layerLabels'
+import { isWearable } from '../wear/statusFlow'
 import { explainOutfit } from './explain'
 import { preferenceScore, buildPreferenceModel, type PreferenceModel } from './preference'
 import { scoreOutfit, type ScoreParts } from './score'
@@ -26,13 +28,17 @@ function meanWearByCategory(items: Garment[]): Record<string, number> {
   return out
 }
 
+function hasRole(items: Garment[], role: 'inner' | 'outer' | 'accessory'): boolean {
+  return items.some((g) => rolesOf(g).includes(role))
+}
+
 function hardOk(items: Garment[], cond: RecommendConditions): boolean {
   if (!items.length) return false
-  if (items.some((g) => g.status !== 'available')) return false
+  if (items.some((g) => !isWearable(g.status))) return false
   if (items.some((g) => g.sceneBlacklist.includes(cond.scene))) return false
-  if (cond.rain && !items.some((g) => g.layerRole === 'outer')) return false
-  if (cond.wind && !items.some((g) => g.layerRole === 'outer')) return false
-  if (cond.temp < 5 && !items.some((g) => g.layerRole === 'outer')) return false
+  if (cond.rain && !hasRole(items, 'outer')) return false
+  if (cond.wind && !hasRole(items, 'outer')) return false
+  if (cond.temp < 5 && !hasRole(items, 'outer')) return false
   if (cond.temp > 30 && items.some((g) => g.thickness >= 4)) return false
   const [min, max] = outfitTempRange(items)
   return cond.temp >= min - 3 && cond.temp <= max + 3
@@ -67,11 +73,12 @@ export function recommend(
 ): ScoredOutfit[] {
   const model = buildPreferenceModel(feedback, garments)
   const usable = garments.filter(
-    (g) => g.layerRole !== 'accessory' && cond.temp >= g.tempMin - 10 && cond.temp <= g.tempMax + 10
+    (g) => isWearable(g.status) && !rolesOf(g).includes('accessory')
+      && cond.temp >= g.tempMin - 10 && cond.temp <= g.tempMax + 10
   )
   const pick = (role: string) =>
     usable
-      .filter((g) => g.layerRole === role)
+      .filter((g) => rolesOf(g).includes(role as Garment['layerRole']))
       .sort((a, b) => {
         const fa = Math.abs(cond.temp - (a.tempMin + a.tempMax) / 2)
         const fb = Math.abs(cond.temp - (b.tempMin + b.tempMax) / 2)
@@ -84,7 +91,7 @@ export function recommend(
   const outers = pick('outer')
   const onePieces = pick('onePiece')
   const shoes = garments.filter(
-    (g) => g.category === 'shoes' && g.status === 'available' && !g.sceneBlacklist.includes(cond.scene)
+    (g) => g.category === 'shoes' && isWearable(g.status) && !g.sceneBlacklist.includes(cond.scene)
   )
   const mean = meanWearByCategory(garments)
   const now = Date.now()
@@ -106,6 +113,8 @@ export function recommend(
   const results: ScoredOutfit[] = []
 
   for (const base of combos) {
+    // 一件多层级衣服可能同时落入多个桶，去重避免同一件在一套里穿两次
+    if (new Set(base.map((g) => g.id)).size !== base.length) continue
     if (!hardOk(base, cond)) continue
     const fp = fingerprint(base.map((g) => g.id))
     if (seen.has(fp)) continue
