@@ -37,7 +37,8 @@ export const useWardrobeStore = defineStore('wardrobe', () => {
 
   async function addGarment(g: Garment) {
     await garmentsRepo.add(g)
-    await refresh()
+    // 写入成功后，刷新失败不应让整个保存判为失败——liveQuery 会兜底推送数据
+    try { await refresh() } catch (e) { console.warn('[wardrobe] 保存后刷新失败', e) }
   }
 
   async function updateGarment(g: Garment) {

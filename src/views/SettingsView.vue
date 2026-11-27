@@ -7,6 +7,7 @@ import { useWeatherStore } from '../stores/useWeatherStore'
 import { useSettingsStore, SCENES } from '../stores/useSettingsStore'
 import { downloadBackup, importBackup, storageEstimate } from '../services/backup/exportImport'
 import { WASH_TABLE_TEXT } from '../services/rules/washRules'
+import { checkStorageAvailable } from '../services/storage/diagnose'
 
 const wardrobe = useWardrobeStore()
 const weather = useWeatherStore()
@@ -16,10 +17,20 @@ const cityInput = ref(settings.city)
 const manualTemp = ref(Math.round(weather.effectiveTemp))
 const usage = ref({ usageMB: 0, quotaMB: 0 })
 const importInput = ref<HTMLInputElement | null>(null)
+const storageCheck = ref('')
 
 onMounted(async () => {
   usage.value = await storageEstimate()
+  const r = await checkStorageAvailable()
+  storageCheck.value = r.message
 })
+
+async function runStorageCheck() {
+  const r = await checkStorageAvailable()
+  storageCheck.value = r.message
+  if (r.ok) message.success(r.message)
+  else message.error(r.message, { duration: 10000 })
+}
 
 async function saveCity() {
   try {
@@ -116,6 +127,8 @@ async function persist() {
     <div class="section-title"><h3>数据与备份</h3></div>
     <div class="card block form">
       <div class="muted">已用 {{ usage.usageMB }} MB / 配额 {{ usage.quotaMB }} MB</div>
+      <div class="muted">本地存储自检：{{ storageCheck || '检查中…' }}</div>
+      <button class="warm-btn" @click="runStorageCheck">重新检测存储</button>
       <div class="row">
         <button class="warm-btn" @click="exportData">导出备份</button>
         <button class="warm-btn" @click="importInput?.click()">导入备份</button>
