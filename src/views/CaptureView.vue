@@ -176,8 +176,12 @@ async function save(again = false) {
       createdAt: now,
       updatedAt: now,
     }
-    await wardrobe.addGarment(garment)
-    message.success('已加入衣橱')
+    const result = await wardrobe.addGarment(garment)
+    if (result.photoSaved) {
+      message.success('已加入衣橱')
+    } else {
+      message.warning('衣物信息已保存，但当前浏览器无法写入照片，照片未保存；可换用系统浏览器后重新录入', { duration: 8000 })
+    }
     if (again) reset()
     else router.push('/wardrobe')
   } catch (e) {

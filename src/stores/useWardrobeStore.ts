@@ -6,6 +6,7 @@ import type { Feedback, Garment, Outfit, WearLog } from '../types'
 import { deriveGarmentRules } from '../services/rules/derive'
 import { washThreshold } from '../services/rules/washRules'
 import { isWearable } from '../services/wear/statusFlow'
+import { recordStorageError } from '../services/storage/diagnose'
 
 export const useWardrobeStore = defineStore('wardrobe', () => {
   const garments = ref<Garment[]>([])
@@ -35,10 +36,21 @@ export const useWardrobeStore = defineStore('wardrobe', () => {
     return wearLogs.value.filter((l) => !l.isUndone && l.dateKey === key)
   })
 
-  async function addGarment(g: Garment) {
-    await garmentsRepo.add(g)
+  /** 保存衣物。照片 Blob 在部分移动 WebView 会导致事务中止，逐级降级保证数据不丢 */
+  async function addGarment(g: Garment): Promise<{ photoSaved: boolean }> {
+    let photoSaved = true
+    try {
+      await garmentsRepo.add(g)
+    } catch (e) {
+      console.warn('[wardrobe] 含照片写入失败，改为仅保存文字信息', e)
+      recordStorageError(e)
+      // 去掉照片 Blob 重试：事务中止多由大对象写入触发，文字数据通常可正常保存
+      photoSaved = false
+      await garmentsRepo.add({ ...g, photoBlob: undefined, thumbBlob: undefined })
+    }
     // 写入成功后，刷新失败不应让整个保存判为失败——liveQuery 会兜底推送数据
     try { await refresh() } catch (e) { console.warn('[wardrobe] 保存后刷新失败', e) }
+    return { photoSaved }
   }
 
   async function updateGarment(g: Garment) {
