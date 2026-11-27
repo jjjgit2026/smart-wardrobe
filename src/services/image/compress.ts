@@ -1,17 +1,15 @@
+import type { Garment } from '../../types'
+
 export interface CompressedImage {
-  main: Blob
-  thumb: Blob
+  /** data URL 字符串：避免移动 WebView 写 Blob 时 IndexedDB 事务中止 */
+  mainUrl: string
+  thumbUrl: string
   dominantColor: string
 }
 
-function canvasToBlob(canvas: HTMLCanvasElement, quality: number): Promise<Blob> {
-  return new Promise((resolve, reject) => {
-    canvas.toBlob(
-      (blob) => (blob ? resolve(blob) : reject(new Error('图片压缩失败'))),
-      'image/webp',
-      quality
-    )
-  })
+function canvasToDataUrl(canvas: HTMLCanvasElement, quality: number): string {
+  // toDataURL 在所有移动 WebView（含微信 X5/WKWebView）都受支持，兼容性优于 toBlob
+  return canvas.toDataURL('image/webp', quality)
 }
 
 function drawScaled(source: ImageBitmap | HTMLImageElement, max: number): HTMLCanvasElement {
@@ -43,22 +41,22 @@ export async function compressImage(file: File): Promise<CompressedImage> {
   let bitmap: ImageBitmap | null = null
   let source: ImageBitmap | HTMLImageElement
   if (typeof createImageBitmap === 'function') {
-    bitmap = await createImageBitmap(file)
-    source = bitmap
+    try {
+      bitmap = await createImageBitmap(file)
+      source = bitmap
+    } catch {
+      // 部分 WebView 的 createImageBitmap 对某些格式失败，回退到 Image
+      source = await loadViaImage(file)
+    }
   } else {
-    source = await new Promise<HTMLImageElement>((resolve, reject) => {
-      const img = new Image()
-      img.onload = () => resolve(img)
-      img.onerror = reject
-      img.src = URL.createObjectURL(file)
-    })
+    source = await loadViaImage(file)
   }
   try {
     const mainCanvas = drawScaled(source, 1600)
     const thumbCanvas = drawScaled(source, 400)
     return {
-      main: await canvasToBlob(mainCanvas, 0.82),
-      thumb: await canvasToBlob(thumbCanvas, 0.7),
+      mainUrl: canvasToDataUrl(mainCanvas, 0.82),
+      thumbUrl: canvasToDataUrl(thumbCanvas, 0.7),
       dominantColor: averageColor(thumbCanvas),
     }
   } finally {
@@ -66,6 +64,31 @@ export async function compressImage(file: File): Promise<CompressedImage> {
   }
 }
 
+function loadViaImage(file: File): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    const objectUrl = URL.createObjectURL(file)
+    img.onload = () => { URL.revokeObjectURL(objectUrl); resolve(img) }
+    img.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error('图片解码失败')) }
+    img.src = objectUrl
+  })
+}
+
+/** 兼容旧数据：优先 data URL，退回 Blob 生成临时 URL */
 export function blobToUrl(blob?: Blob): string {
   return blob ? URL.createObjectURL(blob) : ''
+}
+
+/** 统一读取衣物的缩略图地址，优先 data URL，兼容旧 Blob 数据 */
+export function garmentThumbUrl(garment?: Garment | null): string {
+  if (!garment) return ''
+  if (garment.thumbUrl) return garment.thumbUrl
+  return blobToUrl(garment.thumbBlob)
+}
+
+/** 统一读取衣物的原图地址，优先 data URL，兼容旧 Blob 数据 */
+export function garmentPhotoUrl(garment?: Garment | null): string {
+  if (!garment) return ''
+  if (garment.photoUrl) return garment.photoUrl
+  return blobToUrl(garment.photoBlob)
 }

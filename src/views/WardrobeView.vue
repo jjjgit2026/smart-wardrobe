@@ -6,6 +6,7 @@ import FilterChips from '../components/common/FilterChips.vue'
 import GarmentCard from '../components/garment/GarmentCard.vue'
 import TempStepper from '../components/common/TempStepper.vue'
 import { canToggleInnerOuter, rolesOf } from '../services/rules/layerLabels'
+import { garmentThumbUrl } from '../services/image/compress'
 import { useWardrobeStore } from '../stores/useWardrobeStore'
 import { deriveGarmentRules } from '../services/rules/derive'
 import { markWashed, sendToWash, setArchived, unsetArchived } from '../services/wear/logWear'
@@ -20,7 +21,7 @@ const category = ref('全部')
 const status = ref('全部')
 const showDetail = ref(false)
 const detail = ref<Garment | null>(null)
-const previewUrl = computed(() => detail.value?.thumbBlob ? URL.createObjectURL(detail.value.thumbBlob) : '')
+const previewUrl = computed(() => garmentThumbUrl(detail.value))
 
 function toggleSeason(s: Season) {
   if (!detail.value) return

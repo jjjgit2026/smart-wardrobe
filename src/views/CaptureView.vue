@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { computed, onUnmounted, reactive, ref, watch } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { NInput, NSelect, useMessage } from 'naive-ui'
 import { uid } from '../db'
 import { useWardrobeStore } from '../stores/useWardrobeStore'
 import { compressImage } from '../services/image/compress'
+import type { CompressedImage } from '../services/image/compress'
 import { deriveGarmentRules } from '../services/rules/derive'
 import { canToggleInnerOuter, layerLabel } from '../services/rules/layerLabels'
 import { washThreshold } from '../services/rules/washRules'
@@ -18,12 +19,13 @@ const message = useMessage()
 const fileInput = ref<HTMLInputElement | null>(null)
 const albumInput = ref<HTMLInputElement | null>(null)
 const previewUrl = ref('')
-const blobs = ref<{ main: Blob; thumb: Blob } | null>(null)
+const image = ref<CompressedImage | null>(null)
 const saving = ref(false)
 
 const form = reactive({
   subCategory: '',
   colorName: '',
+  dominantColor: '#C9A989',
   category: 'top' as Category,
   thickness: 2 as Thickness,
   sleeveLength: 'long' as SleeveLength,
@@ -104,9 +106,9 @@ async function onFile(e: Event) {
   if (!file) return
   try {
     const result = await compressImage(file)
-    if (previewUrl.value) URL.revokeObjectURL(previewUrl.value)
-    previewUrl.value = URL.createObjectURL(result.main)
-    blobs.value = { main: result.main, thumb: result.thumb }
+    previewUrl.value = result.mainUrl
+    image.value = result
+    form.dominantColor = result.dominantColor
     if (!form.colorName) {
       const r = parseInt(result.dominantColor.slice(1, 3), 16)
       const g = parseInt(result.dominantColor.slice(3, 5), 16)
@@ -114,17 +116,18 @@ async function onFile(e: Event) {
       form.colorName = r > g && r > b ? '暖色调' : b > r ? '冷色调' : '中性色'
     }
     message.success('照片已处理，EXIF 信息已剥离')
-  } catch {
+  } catch (e) {
+    console.error('[wardrobe] 图片处理失败', e)
     message.error('图片处理失败，请换一张试试')
   }
 }
 
 function reset() {
-  if (previewUrl.value) URL.revokeObjectURL(previewUrl.value)
   previewUrl.value = ''
-  blobs.value = null
+  image.value = null
   form.subCategory = ''
   form.colorName = ''
+  form.dominantColor = '#C9A989'
   form.materialLook = ''
   form.styleTags = ''
   form.sceneBlacklist = ''
@@ -152,9 +155,9 @@ async function save(again = false) {
     const now = Date.now()
     const garment: Garment = {
       id: uid(),
-      photoBlob: blobs.value?.main,
-      thumbBlob: blobs.value?.thumb,
-      dominantColor: '#C9A989',
+      photoUrl: image.value?.mainUrl,
+      thumbUrl: image.value?.thumbUrl,
+      dominantColor: form.dominantColor,
       category: form.category,
       subCategory: form.subCategory.trim(),
       colorName: form.colorName.trim() || '未标注',
@@ -176,12 +179,8 @@ async function save(again = false) {
       createdAt: now,
       updatedAt: now,
     }
-    const result = await wardrobe.addGarment(garment)
-    if (result.photoSaved) {
-      message.success('已加入衣橱')
-    } else {
-      message.warning('衣物信息已保存，但当前浏览器无法写入照片，照片未保存；可换用系统浏览器后重新录入', { duration: 8000 })
-    }
+    await wardrobe.addGarment(garment)
+    message.success('已加入衣橱')
     if (again) reset()
     else router.push('/wardrobe')
   } catch (e) {
@@ -193,7 +192,7 @@ async function save(again = false) {
   }
 }
 
-onUnmounted(() => { if (previewUrl.value) URL.revokeObjectURL(previewUrl.value) })
+// previewUrl 现在是 data URL，无需 revoke
 </script>
 
 <template>

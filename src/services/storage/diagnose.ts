@@ -67,11 +67,26 @@ export async function checkStorageAvailable(): Promise<{ ok: boolean; message: s
   }
 }
 
-/** 真正写入一条衣物再删除，精确复现保存路径上的失败 */
+/** 关闭并重新打开数据库连接，触发 schema 重新检查/升级（不删除任何数据） */
+export async function reconnectDatabase(): Promise<{ ok: boolean; message: string }> {
+  try {
+    db.close()
+    await db.open()
+    return { ok: true, message: '数据库连接已重建，请返回录入页重新保存' }
+  } catch (e) {
+    recordStorageError(e)
+    return { ok: false, message: explainStorageError(e) }
+  }
+}
+
+/** 真正写入一条含 data URL 照片的衣物再删除，精确复现新保存路径 */
 export async function probeGarmentWrite(): Promise<{ ok: boolean; message: string }> {
   const now = Date.now()
+  // 1x1 像素 WebP，模拟真实照片写入（验证 data URL 字符串存储路径）
+  const tinyPhoto = 'data:image/webp;base64,UklGRhoAAABXRUJQVlA4TA0AAAAvAAAAEAcQERGIiP4HAA=='
   const probe: Garment = {
     id: `probe-${now}-${Math.random().toString(36).slice(2)}`,
+    photoUrl: tinyPhoto, thumbUrl: tinyPhoto,
     dominantColor: '#C9A989',
     category: 'top', subCategory: '__存储探针__', colorName: '测试',
     thickness: 2, sleeveLength: 'long', materialLook: '测试',
@@ -82,8 +97,15 @@ export async function probeGarmentWrite(): Promise<{ ok: boolean; message: strin
   }
   try {
     await db.garments.add(probe)
+    const readBack = await db.garments.get(probe.id)
     await db.garments.delete(probe.id)
-    return { ok: true, message: '写入测试成功，本地存储可正常使用' }
+    const photoOk = readBack?.photoUrl === tinyPhoto
+    return {
+      ok: true,
+      message: photoOk
+        ? '写入测试成功：文字与照片（data URL）均可正常保存'
+        : '写入测试部分成功：文字已保存，但照片读回不一致',
+    }
   } catch (e) {
     recordStorageError(e)
     return { ok: false, message: explainStorageError(e) }

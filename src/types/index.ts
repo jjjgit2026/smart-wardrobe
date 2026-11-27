@@ -7,6 +7,10 @@ export type SleeveLength = 'none' | 'short' | 'long'
 
 export interface Garment {
   id: string
+  /** 新存储：data URL 字符串，避免 WebView 写 Blob 时事务中止 */
+  photoUrl?: string
+  thumbUrl?: string
+  /** 旧数据兼容：历史 Blob 字段，仅用于读取 */
   photoBlob?: Blob
   thumbBlob?: Blob
   dominantColor: string

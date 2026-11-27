@@ -2,9 +2,9 @@ import { db } from '../../db'
 import type { Feedback, Garment, Outfit, WearLog } from '../../types'
 
 export interface BackupFile {
-  version: 1 | 2
+  version: 1 | 2 | 3
   exportedAt: number
-  garments: Array<Omit<Garment, 'photoBlob' | 'thumbBlob'> & { photo?: string; thumb?: string }>
+  garments: Array<Omit<Garment, 'photoBlob' | 'thumbBlob' | 'photoUrl' | 'thumbUrl'> & { photo?: string; thumb?: string }>
   outfits: Outfit[]
   wearLogs: WearLog[]
   feedback: Feedback[]
@@ -20,25 +20,20 @@ function blobToDataUrl(blob?: Blob): Promise<string | undefined> {
   })
 }
 
-function dataUrlToBlob(data?: string): Blob | undefined {
-  if (!data || !data.startsWith('data:')) return undefined
-  const [head, body] = data.split(',')
-  const mime = head.match(/:(.*?);/)?.[1] || 'image/webp'
-  const binary = atob(body)
-  const bytes = new Uint8Array(binary.length)
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
-  return new Blob([bytes], { type: mime })
-}
-
 export async function exportBackup(): Promise<BackupFile> {
   const garments = await db.garments.toArray()
   return {
-    version: 2,
+    version: 3,
     exportedAt: Date.now(),
     garments: await Promise.all(
       garments.map(async (g) => {
-        const { photoBlob, thumbBlob, ...rest } = g
-        return { ...rest, photo: await blobToDataUrl(photoBlob), thumb: await blobToDataUrl(thumbBlob) }
+        const { photoBlob, thumbBlob, photoUrl, thumbUrl, ...rest } = g
+        // 优先 data URL；旧 Blob 数据转成 data URL，统一备份格式
+        return {
+          ...rest,
+          photo: photoUrl || await blobToDataUrl(photoBlob),
+          thumb: thumbUrl || await blobToDataUrl(thumbBlob),
+        }
       })
     ),
     outfits: await db.outfits.toArray(),
@@ -60,17 +55,18 @@ export async function downloadBackup(): Promise<void> {
 
 export async function importBackup(file: File): Promise<{ added: number }> {
   const raw = JSON.parse(await file.text()) as BackupFile
-  if ((raw.version !== 1 && raw.version !== 2) || !Array.isArray(raw.garments)) throw new Error('备份文件格式不正确')
+  if (![1, 2, 3].includes(raw.version) || !Array.isArray(raw.garments)) throw new Error('备份文件格式不正确')
   let added = 0
   await db.transaction('rw', db.garments, db.outfits, db.wearLogs, db.feedback, async () => {
     for (const item of raw.garments) {
       const exists = await db.garments.get(item.id)
       if (exists) continue
       const { photo, thumb, ...rest } = item
+      // 新版本统一存 data URL 字符串；导出时会转回 data URL，读入无需转 Blob
       await db.garments.add({
         ...rest,
-        photoBlob: dataUrlToBlob(photo),
-        thumbBlob: dataUrlToBlob(thumb),
+        photoUrl: photo,
+        thumbUrl: thumb,
       } as Garment)
       added++
     }

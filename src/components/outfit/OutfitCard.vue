@@ -1,13 +1,17 @@
 <script setup lang="ts">
 import { computed, onUnmounted } from 'vue'
 import type { Garment, Outfit } from '../../types'
-import { blobToUrl } from '../../services/image/compress'
+import { garmentThumbUrl } from '../../services/image/compress'
 
 const props = defineProps<{ outfit: Outfit; items: Garment[]; temp: number }>()
 const emit = defineEmits<{ wear: []; swap: []; reject: [] }>()
 
-const urls = computed(() => props.items.map((g) => blobToUrl(g.thumbBlob)))
-onUnmounted(() => urls.value.forEach((u) => u && URL.revokeObjectURL(u)))
+const urls = computed(() => props.items.map((g) => garmentThumbUrl(g)))
+onUnmounted(() => {
+  props.items.forEach((g, i) => {
+    if (g.thumbBlob && urls.value[i]?.startsWith('blob:')) URL.revokeObjectURL(urls.value[i])
+  })
+})
 
 const range = computed(() => props.outfit.tempRange || [0, 0])
 const cursor = computed(() => {

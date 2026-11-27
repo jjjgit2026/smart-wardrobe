@@ -1,13 +1,16 @@
 <script setup lang="ts">
 import { computed, onUnmounted } from 'vue'
 import type { Garment } from '../../types'
-import { blobToUrl } from '../../services/image/compress'
+import { garmentThumbUrl } from '../../services/image/compress'
 
 const props = defineProps<{ garment: Garment }>()
 const emit = defineEmits<{ open: [id: string] }>()
 
-const url = computed(() => blobToUrl(props.garment.thumbBlob))
-onUnmounted(() => { if (url.value) URL.revokeObjectURL(url.value) })
+const url = computed(() => garmentThumbUrl(props.garment))
+// data URL 无需释放；仅旧 Blob 数据生成的临时 URL 需要在卸载时回收
+onUnmounted(() => {
+  if (props.garment.thumbBlob && url.value.startsWith('blob:')) URL.revokeObjectURL(url.value)
+})
 
 const statusText: Record<string, string> = {
   available: '', needsWash: '待清洗', washing: '洗中', archived: '已归档',

@@ -7,7 +7,7 @@ import { useWeatherStore } from '../stores/useWeatherStore'
 import { useSettingsStore, SCENES } from '../stores/useSettingsStore'
 import { downloadBackup, importBackup, storageEstimate } from '../services/backup/exportImport'
 import { WASH_TABLE_TEXT } from '../services/rules/washRules'
-import { checkStorageAvailable, getLastStorageError, probeGarmentWrite } from '../services/storage/diagnose'
+import { checkStorageAvailable, getLastStorageError, probeGarmentWrite, reconnectDatabase } from '../services/storage/diagnose'
 
 const wardrobe = useWardrobeStore()
 const weather = useWeatherStore()
@@ -40,6 +40,13 @@ async function runWriteProbe() {
   writeProbe.value = r.message
   if (r.ok) message.success(r.message)
   else message.error(r.message, { duration: 10000 })
+}
+
+async function runReconnect() {
+  const r = await reconnectDatabase()
+  if (r.ok) message.success(r.message)
+  else message.error(r.message, { duration: 10000 })
+  await wardrobe.refresh().catch(() => undefined)
 }
 
 function refreshLastError() {
@@ -147,6 +154,8 @@ async function persist() {
         <button class="warm-btn" @click="runWriteProbe">测试写入</button>
       </div>
       <div v-if="writeProbe" class="probe-result muted">{{ writeProbe }}</div>
+      <div class="muted" style="font-size:12px;line-height:1.6;">若保存持续失败，可先导出备份，再点下方按钮重建数据库连接（不会删除数据）。</div>
+      <button class="warm-btn" @click="runReconnect">重建数据库连接</button>
       <div v-if="lastError" class="error-box">
         <div class="error-title">最近一次保存错误（可复制反馈）：</div>
         <div class="error-body">{{ lastError }}</div>
