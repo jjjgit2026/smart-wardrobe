@@ -8,7 +8,7 @@ import { compressImage } from '../services/image/compress'
 import { deriveGarmentRules } from '../services/rules/derive'
 import { canToggleInnerOuter, layerLabel } from '../services/rules/layerLabels'
 import { washThreshold } from '../services/rules/washRules'
-import { explainStorageError } from '../services/storage/diagnose'
+import { explainStorageError, recordStorageError } from '../services/storage/diagnose'
 import TempStepper from '../components/common/TempStepper.vue'
 import type { Category, Garment, Season, SleeveLength, Thickness } from '../types'
 
@@ -182,6 +182,7 @@ async function save(again = false) {
     else router.push('/wardrobe')
   } catch (e) {
     console.error('[wardrobe] 保存失败', e)
+    recordStorageError(e)
     message.error(`保存失败：${explainStorageError(e)}`, { duration: 10000 })
   } finally {
     saving.value = false

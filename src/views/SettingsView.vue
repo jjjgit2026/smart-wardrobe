@@ -7,7 +7,7 @@ import { useWeatherStore } from '../stores/useWeatherStore'
 import { useSettingsStore, SCENES } from '../stores/useSettingsStore'
 import { downloadBackup, importBackup, storageEstimate } from '../services/backup/exportImport'
 import { WASH_TABLE_TEXT } from '../services/rules/washRules'
-import { checkStorageAvailable } from '../services/storage/diagnose'
+import { checkStorageAvailable, getLastStorageError, probeGarmentWrite } from '../services/storage/diagnose'
 
 const wardrobe = useWardrobeStore()
 const weather = useWeatherStore()
@@ -18,6 +18,8 @@ const manualTemp = ref(Math.round(weather.effectiveTemp))
 const usage = ref({ usageMB: 0, quotaMB: 0 })
 const importInput = ref<HTMLInputElement | null>(null)
 const storageCheck = ref('')
+const writeProbe = ref('')
+const lastError = ref(getLastStorageError())
 
 onMounted(async () => {
   usage.value = await storageEstimate()
@@ -30,6 +32,18 @@ async function runStorageCheck() {
   storageCheck.value = r.message
   if (r.ok) message.success(r.message)
   else message.error(r.message, { duration: 10000 })
+}
+
+async function runWriteProbe() {
+  writeProbe.value = '测试中…'
+  const r = await probeGarmentWrite()
+  writeProbe.value = r.message
+  if (r.ok) message.success(r.message)
+  else message.error(r.message, { duration: 10000 })
+}
+
+function refreshLastError() {
+  lastError.value = getLastStorageError()
 }
 
 async function saveCity() {
@@ -128,7 +142,16 @@ async function persist() {
     <div class="card block form">
       <div class="muted">已用 {{ usage.usageMB }} MB / 配额 {{ usage.quotaMB }} MB</div>
       <div class="muted">本地存储自检：{{ storageCheck || '检查中…' }}</div>
-      <button class="warm-btn" @click="runStorageCheck">重新检测存储</button>
+      <div class="row">
+        <button class="warm-btn" @click="runStorageCheck">重新检测存储</button>
+        <button class="warm-btn" @click="runWriteProbe">测试写入</button>
+      </div>
+      <div v-if="writeProbe" class="probe-result muted">{{ writeProbe }}</div>
+      <div v-if="lastError" class="error-box">
+        <div class="error-title">最近一次保存错误（可复制反馈）：</div>
+        <div class="error-body">{{ lastError }}</div>
+        <button class="warm-btn" @click="refreshLastError">刷新错误记录</button>
+      </div>
       <div class="row">
         <button class="warm-btn" @click="exportData">导出备份</button>
         <button class="warm-btn" @click="importInput?.click()">导入备份</button>
@@ -159,6 +182,10 @@ async function persist() {
 .wash-line { font-size: 13px; padding: 4px 0; border-bottom: 1px solid var(--border); }
 .wash-line:last-child { border-bottom: 0; }
 .danger-box { background: var(--danger-wash); color: var(--danger); border-radius: var(--r-sm); padding: 10px 12px; font-size: 12px; }
+.probe-result { background: var(--surface-2); border-radius: var(--r-sm); padding: 8px 10px; font-size: 12px; word-break: break-all; }
+.error-box { background: var(--danger-wash); border-radius: var(--r-sm); padding: 10px 12px; font-size: 12px; display: flex; flex-direction: column; gap: 8px; }
+.error-title { color: var(--danger); font-weight: 500; }
+.error-body { color: var(--text-2); word-break: break-all; user-select: text; font-family: monospace; }
 .warm-btn { flex: 1; padding: 8px 6px; font-size: 12px; }
 .warm-btn.danger { color: var(--danger); border-color: var(--danger); }
 .hidden-file { display: none; }
